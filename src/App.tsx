@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   completeRoute,
   generateRoutes,
-  MODES,
   overallRank,
   type Category,
   type CityData,
@@ -10,113 +11,256 @@ import {
   type Mode,
   type Progress,
   type Route,
-} from "./core";
-import { CITIES, loadCity } from "./data/city";
-import { loadProgress, saveProgress } from "./data/progress";
-import { MapView } from "./map/MapView";
-import { InterestPicker } from "./ui/InterestPicker";
-import { RouteCard } from "./ui/RouteCard";
+} from "@/core";
+import { CITIES, loadCity } from "@/data/city";
+import { DEFAULT_INTERESTS } from "@/data/categories";
+import { loadProgress, saveProgress } from "@/data/progress";
+import { useTheme } from "@/lib/theme";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { MapView } from "@/map/MapView";
+import { AppHeader } from "@/features/layout/AppHeader";
+import { Panel, type SnapRequest } from "@/features/layout/Panel";
+import { GenerateButton, SetupScreen } from "@/features/setup/SetupScreen";
+import { RoutesScreen } from "@/features/routes/RoutesScreen";
+import { FinishButton, WalkScreen } from "@/features/walk/WalkScreen";
+import { CompletionDialog, type Completion } from "@/features/walk/CompletionDialog";
 
-const DEFAULT_INTERESTS: Category[] = ["pharmacy", "groceries", "money", "transport", "food"];
+type Screen = "setup" | "routes" | "walk";
+
+interface State {
+  screen: Screen;
+  origin: LatLon | null;
+  interests: Category[];
+  mode: Mode;
+  budget: number;
+  seed: number;
+  routes: Route[];
+  activeId: string | null;
+  checked: string[];
+  progress: Progress;
+  completion: Completion | null;
+  error: string | null;
+  sheet: SnapRequest;
+}
+
+type Action =
+  | { type: "origin"; origin: LatLon }
+  | { type: "interests"; interests: Category[] }
+  | { type: "mode"; mode: Mode }
+  | { type: "budget"; budget: number }
+  | { type: "generated"; routes: Route[] }
+  | { type: "select"; id: string }
+  | { type: "start"; id: string }
+  | { type: "toggle"; poiId: string }
+  | { type: "finish" }
+  | { type: "dismissCompletion" }
+  | { type: "screen"; screen: Screen }
+  | { type: "error"; error: string | null };
+
+const initial: State = {
+  screen: "setup",
+  origin: null,
+  interests: DEFAULT_INTERESTS,
+  mode: "walk",
+  budget: 45,
+  seed: 1,
+  routes: [],
+  activeId: null,
+  checked: [],
+  progress: loadProgress(),
+  completion: null,
+  error: null,
+  sheet: { to: "peek", id: 0 },
+};
+
+const peek = (s: State): SnapRequest => ({ to: "peek", id: s.sheet.id + 1 });
+const full = (s: State): SnapRequest => ({ to: "full", id: s.sheet.id + 1 });
+
+function reducer(s: State, a: Action): State {
+  switch (a.type) {
+    case "origin":
+      return { ...s, origin: a.origin, error: null };
+    case "interests":
+      return { ...s, interests: a.interests };
+    case "mode":
+      return { ...s, mode: a.mode };
+    case "budget":
+      return { ...s, budget: a.budget };
+    case "generated":
+      return {
+        ...s,
+        routes: a.routes,
+        activeId: a.routes[0]?.id ?? null,
+        seed: s.seed + 1,
+        screen: "routes",
+        checked: [],
+        error: null,
+        sheet: peek(s),
+      };
+    case "select":
+      return { ...s, activeId: a.id };
+    case "start":
+      return { ...s, activeId: a.id, screen: "walk", checked: [], sheet: peek(s) };
+    case "toggle":
+      return { ...s, checked: s.checked.includes(a.poiId) ? s.checked.filter((id) => id !== a.poiId) : [...s.checked, a.poiId] };
+    case "finish": {
+      const route = s.routes.find((r) => r.id === s.activeId);
+      if (!route) return s;
+      const rankBefore = overallRank(s.progress);
+      const progress = completeRoute(s.progress, route);
+      const points = Object.values(progress.hoods).reduce((x, y) => x + y, 0) - Object.values(s.progress.hoods).reduce((x, y) => x + y, 0);
+      return {
+        ...s,
+        progress,
+        completion: {
+          points: Math.round(points),
+          stops: route.stops.length,
+          rankBefore,
+          rankAfter: overallRank(progress),
+          hoodName: hoodNameFor(route),
+        },
+      };
+    }
+    case "dismissCompletion":
+      return { ...s, completion: null, screen: "setup", routes: [], activeId: null, checked: [], sheet: peek(s) };
+    case "screen":
+      return { ...s, screen: a.screen, ...(a.screen === "setup" ? { activeId: null, sheet: full(s) } : { sheet: peek(s) }) };
+    case "error":
+      return { ...s, error: a.error };
+  }
+}
+
+/** Best-effort hood name from OSM suburb tags on the stops. */
+function hoodNameFor(route: Route): string {
+  const counts = new Map<string, number>();
+  for (const s of route.stops) {
+    const n = s.tags["addr:suburb"];
+    if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
+  }
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  return best?.[0] ?? "this hood";
+}
 
 export function App() {
-  const city = CITIES[0];
+  const [citySlug, setCitySlug] = useState(CITIES[0].slug);
+  const city = CITIES.find((c) => c.slug === citySlug) ?? CITIES[0];
   const [data, setData] = useState<CityData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [origin, setOrigin] = useState<LatLon | null>(null);
-  const [interests, setInterests] = useState<Category[]>(DEFAULT_INTERESTS);
-  const [mode, setMode] = useState<Mode>("walk");
-  const [budget, setBudget] = useState(45);
-  const [seed, setSeed] = useState(1);
-  const [routes, setRoutes] = useState<Route[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<Progress>(() => loadProgress());
+  const [locating, setLocating] = useState(false);
+  const [s, dispatch] = useReducer(reducer, initial);
+  const [theme, toggleTheme] = useTheme();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const reduce = useReducedMotion();
 
   useEffect(() => {
-    loadCity(city.slug).then(setData).catch((e: Error) => setError(e.message));
+    setData(null);
+    loadCity(city.slug)
+      .then(setData)
+      .catch((e: Error) => dispatch({ type: "error", error: e.message }));
   }, [city.slug]);
 
-  useEffect(() => saveProgress(progress), [progress]);
+  useEffect(() => saveProgress(s.progress), [s.progress]);
 
-  const active = useMemo(() => routes.find((r) => r.id === activeId) ?? null, [routes, activeId]);
+  const active = useMemo(() => s.routes.find((r) => r.id === s.activeId) ?? null, [s.routes, s.activeId]);
+  const nextId = s.screen === "walk" && active ? (active.stops.find((st) => !s.checked.includes(st.id))?.id ?? null) : null;
 
   const locate = () => {
-    if (!navigator.geolocation) return setError("Geolocation not available. Tap the map instead.");
+    if (!navigator.geolocation) {
+      dispatch({ type: "error", error: "This browser can't share your location. Tap the map instead." });
+      return;
+    }
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => setOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => setError("Couldn't get your location. Tap the map to set a start point."),
+      (pos) => {
+        setLocating(false);
+        dispatch({ type: "origin", origin: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
+      },
+      () => {
+        setLocating(false);
+        dispatch({ type: "error", error: "Couldn't get your location. Tap the map to set a start point." });
+      },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
   const generate = () => {
-    if (!data || !origin) return;
-    const next = generateRoutes(
-      { origin, interests, mode, budgetMinutes: budget, seed, visited: new Set(progress.visitedPoiIds) },
+    if (!data || !s.origin) return;
+    const routes = generateRoutes(
+      { origin: s.origin, interests: s.interests, mode: s.mode, budgetMinutes: s.budget, seed: s.seed, visited: new Set(s.progress.visitedPoiIds) },
       data.pois,
     );
-    setSeed((s) => s + 1);
-    setRoutes(next);
-    setActiveId(next[0]?.id ?? null);
-    setError(next.length ? null : "Nothing found nearby for those interests. Try a bigger budget or more interests.");
+    dispatch({ type: "generated", routes });
   };
 
+  const footer =
+    s.screen === "setup" ? (
+      <GenerateButton ready={!!data} disabled={!data || !s.origin || s.interests.length === 0} onClick={generate} />
+    ) : s.screen === "walk" && active ? (
+      <FinishButton allDone={s.checked.length === active.stops.length} onFinish={() => dispatch({ type: "finish" })} />
+    ) : null;
+
+  const screenMotion = reduce
+    ? {}
+    : { initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -24 }, transition: { duration: 0.25, ease: "easeOut" as const } };
+
   return (
-    <div className="app">
-      <header>
-        <h1>Yɛnkɔ</h1>
-        <span className="rank">{overallRank(progress)} · {city.name}</span>
-      </header>
+    <TooltipProvider delayDuration={300}>
+      <div className="relative h-full w-full overflow-hidden bg-background">
+        <MapView
+          center={city.center}
+          origin={s.origin}
+          route={s.screen === "setup" ? null : active}
+          checked={s.checked}
+          nextId={nextId}
+          theme={theme}
+          panel={isDesktop ? "left" : "bottom"}
+          onPickOrigin={s.screen === "setup" ? (p) => dispatch({ type: "origin", origin: p }) : undefined}
+        />
 
-      <aside className="panel">
-        <h2>Start</h2>
-        <button className="primary" type="button" onClick={locate}>
-          📍 Use my location
-        </button>
-        <p className="hint">{origin ? `Start: ${origin.lat.toFixed(4)}, ${origin.lon.toFixed(4)}` : "Or tap anywhere on the map."}</p>
+        <AppHeader cities={CITIES} city={city} onCity={setCitySlug} theme={theme} onToggleTheme={toggleTheme} progress={s.progress} />
 
-        <h2>Interests</h2>
-        <InterestPicker selected={interests} onChange={setInterests} />
-
-        <h2>How are you moving?</h2>
-        <div className="row">
-          <select value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
-            {Object.entries(MODES).map(([k, m]) => (
-              <option key={k} value={k}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="row">
-          <label htmlFor="budget">Time: {budget} min</label>
-        </div>
-        <input id="budget" type="range" min={15} max={180} step={5} value={budget} onChange={(e) => setBudget(+e.target.value)} />
-
-        <button className="primary" type="button" onClick={generate} disabled={!data || !origin || interests.length === 0}>
-          {data ? "Yɛnkɔ — generate routes" : "Loading Accra…"}
-        </button>
-        {error && <p className="error">{error}</p>}
-
-        {routes.length > 0 && (
-          <>
-            <h2>Routes</h2>
-            <div className="routes">
-              {routes.map((r) => (
-                <RouteCard
-                  key={r.id}
-                  route={r}
-                  active={r.id === activeId}
-                  completed={progress.completedRouteIds.includes(r.id)}
-                  onSelect={() => setActiveId(r.id)}
-                  onComplete={() => setProgress((p) => completeRoute(p, r))}
+        <Panel footer={footer} snapRequest={s.sheet}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={s.screen} {...screenMotion}>
+              {s.screen === "setup" && (
+                <SetupScreen
+                  cityName={city.name}
+                  dataReady={!!data}
+                  origin={s.origin}
+                  locating={locating}
+                  onLocate={locate}
+                  interests={s.interests}
+                  onInterests={(i) => dispatch({ type: "interests", interests: i })}
+                  mode={s.mode}
+                  onMode={(m) => dispatch({ type: "mode", mode: m })}
+                  budget={s.budget}
+                  onBudget={(b) => dispatch({ type: "budget", budget: b })}
+                  error={s.error}
                 />
-              ))}
-            </div>
-          </>
-        )}
-        {data && <p className="hint">{data.count.toLocaleString()} places · {data.source}</p>}
-      </aside>
+              )}
+              {s.screen === "routes" && (
+                <RoutesScreen
+                  routes={s.routes}
+                  activeId={s.activeId}
+                  onSelect={(id) => dispatch({ type: "select", id })}
+                  onStart={(id) => dispatch({ type: "start", id })}
+                  onBack={() => dispatch({ type: "screen", screen: "setup" })}
+                  onRegenerate={generate}
+                />
+              )}
+              {s.screen === "walk" && active && (
+                <WalkScreen
+                  route={active}
+                  checked={s.checked}
+                  onToggle={(id) => dispatch({ type: "toggle", poiId: id })}
+                  onBack={() => dispatch({ type: "screen", screen: "routes" })}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </Panel>
 
-      <MapView center={city.center} origin={origin} route={active} onPickOrigin={setOrigin} />
-    </div>
+        <CompletionDialog completion={s.completion} onClose={() => dispatch({ type: "dismissCompletion" })} />
+      </div>
+    </TooltipProvider>
   );
 }

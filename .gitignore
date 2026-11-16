@@ -6,3 +6,4 @@ dev-dist
 scripts/.fetch-*.log
 .env
 .env.*
+*.tsbuildinfo
