@@ -38,7 +38,7 @@ export function InterestGrid({ value, onChange }: Props) {
               className={cn(
                 "group relative flex items-start gap-2.5 rounded-2xl border bg-background p-3 text-left transition-colors",
                 "outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                on ? "border-primary bg-primary/5" : "hover:border-foreground/25 hover:bg-muted/60",
+                on ? "border-selected bg-selected-surface" : "hover:border-foreground/25 hover:bg-muted/60",
               )}
             >
               <span
@@ -56,7 +56,7 @@ export function InterestGrid({ value, onChange }: Props) {
               </span>
               <span
                 className={cn(
-                  "absolute top-2 right-2 grid size-4 place-items-center rounded-full bg-primary text-primary-foreground transition-all",
+                  "absolute top-2 right-2 grid size-4 place-items-center rounded-full bg-selected text-background transition-all",
                   on ? "scale-100 opacity-100" : "scale-50 opacity-0",
                 )}
                 aria-hidden="true"

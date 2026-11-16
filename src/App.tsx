@@ -3,7 +3,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   completeRoute,
+  dominantHood,
   generateRoutes,
+  hoodResolver,
   overallRank,
   type Category,
   type CityData,
@@ -15,6 +17,7 @@ import {
 import { CITIES, loadCity } from "@/data/city";
 import { DEFAULT_INTERESTS } from "@/data/categories";
 import { loadProgress, saveProgress } from "@/data/progress";
+import { routeOnStreets } from "@/data/routing";
 import { useTheme } from "@/lib/theme";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { MapView } from "@/map/MapView";
@@ -49,10 +52,11 @@ type Action =
   | { type: "mode"; mode: Mode }
   | { type: "budget"; budget: number }
   | { type: "generated"; routes: Route[] }
+  | { type: "routed"; route: Route }
   | { type: "select"; id: string }
   | { type: "start"; id: string }
   | { type: "toggle"; poiId: string }
-  | { type: "finish" }
+  | { type: "finish"; hoodOf: (p: LatLon) => string }
   | { type: "dismissCompletion" }
   | { type: "screen"; screen: Screen }
   | { type: "error"; error: string | null };
@@ -63,7 +67,8 @@ const initial: State = {
   interests: DEFAULT_INTERESTS,
   mode: "walk",
   budget: 45,
-  seed: 1,
+  // Different first shuffle on every visit.
+  seed: Math.floor(Math.random() * 1e6),
   routes: [],
   activeId: null,
   checked: [],
@@ -97,6 +102,8 @@ function reducer(s: State, a: Action): State {
         error: null,
         sheet: peek(s),
       };
+    case "routed":
+      return { ...s, routes: s.routes.map((r) => (r.id === a.route.id ? a.route : r)) };
     case "select":
       return { ...s, activeId: a.id };
     case "start":
@@ -107,7 +114,7 @@ function reducer(s: State, a: Action): State {
       const route = s.routes.find((r) => r.id === s.activeId);
       if (!route) return s;
       const rankBefore = overallRank(s.progress);
-      const progress = completeRoute(s.progress, route);
+      const progress = completeRoute(s.progress, route, a.hoodOf);
       const points = Object.values(progress.hoods).reduce((x, y) => x + y, 0) - Object.values(s.progress.hoods).reduce((x, y) => x + y, 0);
       return {
         ...s,
@@ -117,7 +124,7 @@ function reducer(s: State, a: Action): State {
           stops: route.stops.length,
           rankBefore,
           rankAfter: overallRank(progress),
-          hoodName: hoodNameFor(route),
+          hoodName: dominantHood(route.stops, a.hoodOf),
         },
       };
     }
@@ -128,17 +135,6 @@ function reducer(s: State, a: Action): State {
     case "error":
       return { ...s, error: a.error };
   }
-}
-
-/** Best-effort hood name from OSM suburb tags on the stops. */
-function hoodNameFor(route: Route): string {
-  const counts = new Map<string, number>();
-  for (const s of route.stops) {
-    const n = s.tags["addr:suburb"];
-    if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
-  }
-  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  return best?.[0] ?? "this hood";
 }
 
 export function App() {
@@ -159,6 +155,28 @@ export function App() {
   }, [city.slug]);
 
   useEffect(() => saveProgress(s.progress), [s.progress]);
+
+  const hoodOf = useMemo(() => hoodResolver(data?.hoods), [data]);
+
+  // Swap straight lines for real streets, one request at a time (fair use),
+  // the highlighted route first.
+  const routeKey = s.routes.map((r) => r.id).join("|");
+  useEffect(() => {
+    let cancelled = false;
+    const pending = [...s.routes].filter((r) => !r.routed).sort((a, b) => Number(b.id === s.activeId) - Number(a.id === s.activeId));
+    (async () => {
+      for (const r of pending) {
+        const routed = await routeOnStreets(r);
+        if (cancelled) return;
+        if (routed) dispatch({ type: "routed", route: routed });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only when a new set of routes arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
 
   const active = useMemo(() => s.routes.find((r) => r.id === s.activeId) ?? null, [s.routes, s.activeId]);
   const nextId = s.screen === "walk" && active ? (active.stops.find((st) => !s.checked.includes(st.id))?.id ?? null) : null;
@@ -195,7 +213,7 @@ export function App() {
     s.screen === "setup" ? (
       <GenerateButton ready={!!data} disabled={!data || !s.origin || s.interests.length === 0} onClick={generate} />
     ) : s.screen === "walk" && active ? (
-      <FinishButton allDone={s.checked.length === active.stops.length} onFinish={() => dispatch({ type: "finish" })} />
+      <FinishButton allDone={s.checked.length === active.stops.length} onFinish={() => dispatch({ type: "finish", hoodOf })} />
     ) : null;
 
   const screenMotion = reduce
@@ -240,6 +258,7 @@ export function App() {
               {s.screen === "routes" && (
                 <RoutesScreen
                   routes={s.routes}
+                  budgetMinutes={s.budget}
                   activeId={s.activeId}
                   onSelect={(id) => dispatch({ type: "select", id })}
                   onStart={(id) => dispatch({ type: "start", id })}

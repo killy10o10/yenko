@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Stamp } from "@/components/illustrations/Stamp";
-import { overallRank, rankForPoints, type Progress as ProgressData, type Rank } from "@/core";
+import { hoodLabel, isCellKey, overallRank, rankForPoints, type Progress as ProgressData, type Rank } from "@/core";
 
 const THRESHOLDS: Record<Rank, number> = { JJC: 0, Visitor: 50, Regular: 200, Local: 500, Borga: 500 };
 const ORDER: Rank[] = ["JJC", "Visitor", "Regular", "Local", "Borga"];
@@ -17,7 +17,8 @@ const BLURB: Record<Rank, string> = {
 
 export function PassportDialog({ progress }: { progress: ProgressData }) {
   const rank = overallRank(progress);
-  const hoods = Object.entries(progress.hoods).sort((a, b) => b[1] - a[1]);
+  // Named hoods first; old grid-cell entries sink to the bottom.
+  const hoods = Object.entries(progress.hoods).sort((a, b) => Number(isCellKey(a[0])) - Number(isCellKey(b[0])) || b[1] - a[1]);
   const best = hoods[0]?.[1] ?? 0;
   const nextRank = ORDER[Math.min(ORDER.indexOf(rank) + 1, ORDER.length - 1)];
   const nextAt = THRESHOLDS[nextRank];
@@ -65,7 +66,7 @@ export function PassportDialog({ progress }: { progress: ProgressData }) {
               <ul className="space-y-1.5">
                 {hoods.slice(0, 5).map(([cell, pts]) => (
                   <li key={cell} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2 text-sm">
-                    <span className="font-medium">Cell {cell}</span>
+                    <span className="font-medium">{hoodLabel(cell)}</span>
                     <span className="text-muted-foreground">
                       {rankForPoints(pts)} · {Math.round(pts)}
                     </span>

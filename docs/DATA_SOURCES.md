@@ -39,11 +39,13 @@ limits, and the fallback if it goes away.
 
 ## Routing (turning an ordered list of stops into a road path)
 
-MVP only needs *distances* between candidate stops, and straight-line (haversine)
-distance scaled by a per-mode factor is accurate enough to pick and order stops.
-Real road geometry is cosmetic until turn-by-turn arrives.
+Stops are picked with straight-line distance scaled by a per-mode detour
+factor. Once a route exists, the app fetches its real street path from the
+**FOSSGIS OSRM** servers at `routing.openstreetmap.de` (`routed-foot` for
+walking, `routed-car` for everything else): no key, CORS enabled, fair use,
+one request per route. See ADR-008.
 
-When we want real paths:
+Other options, for when usage grows:
 
 1. **OpenRouteService** — free key, ~2,000 directions requests/day, has a
    `matrix` endpoint for many-to-many distances. Walking, cycling, driving.
@@ -51,6 +53,14 @@ When we want real paths:
 3. **Valhalla** public instances (e.g. the FOSSGIS one) — similar to OSRM.
 4. **Self-hosted OSRM** — Docker + Ghana extract on an Oracle Cloud Always Free VM.
    Unlimited, ours, ~20 minutes to set up. This is the plan once usage grows.
+
+## Hood names
+
+`scripts/fetch-pois.mjs` also pulls `place=neighbourhood|quarter|suburb|town|village`
+nodes into each city file's `hoods` list (267 for Accra). The app names an
+area after the nearest one, preferring specific neighbourhoods over town
+centres. `--hoods-only` refreshes just these, which is a light query that still
+works when the public Overpass servers are struggling.
 
 ## Geocoding (text → coordinates, and the reverse)
 

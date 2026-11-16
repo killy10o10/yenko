@@ -28,7 +28,7 @@ export function WalkScreen({ route, checked, onToggle, onBack }: Props) {
       </Button>
 
       <div className="mb-4">
-        <p className="text-xs font-semibold tracking-wider text-primary uppercase">On the move</p>
+        <p className="text-xs font-semibold tracking-wider text-eyebrow uppercase">On the move</p>
         <h2 className="text-2xl font-extrabold">{VARIANT_COPY[route.variant].title}</h2>
         <div className="mt-3 flex items-center gap-3">
           <Progress value={(done / total) * 100} aria-label="Stops completed" className="h-2 **:data-[slot=progress-indicator]:bg-forest" />
@@ -54,13 +54,13 @@ export function WalkScreen({ route, checked, onToggle, onBack }: Props) {
                 aria-pressed={isDone}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  isDone ? "border-forest/40 bg-forest/10" : isNext ? "border-primary bg-background shadow-md shadow-primary/10" : "bg-background opacity-80",
+                  isDone ? "border-forest/40 bg-forest/10" : isNext ? "border-selected bg-background shadow-md shadow-black/10 ring-1 ring-selected" : "bg-background opacity-80",
                 )}
               >
                 <span
                   className={cn(
                     "grid size-9 shrink-0 place-items-center rounded-full font-heading text-sm font-bold transition-colors",
-                    isDone ? "bg-forest text-forest-foreground" : isNext ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground",
+                    isDone ? "bg-forest text-forest-foreground" : isNext ? "bg-route text-route-foreground" : "bg-secondary text-secondary-foreground",
                   )}
                   aria-hidden="true"
                 >

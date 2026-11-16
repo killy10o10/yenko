@@ -25,6 +25,8 @@ export interface LatLon {
   lon: number;
 }
 
+import type { Hood } from "./hoods";
+
 export interface Poi extends LatLon {
   id: string;
   name: string | null;
@@ -41,6 +43,8 @@ export interface CityData {
   source: string;
   fetchedAt: string;
   count: number;
+  /** Named neighbourhoods, suburbs and towns, used to name areas. */
+  hoods?: Hood[];
   pois: Poi[];
 }
 
@@ -68,6 +72,12 @@ export interface Route {
   stops: Poi[];
   /** Ordered path including origin at the start (and end if loop). */
   path: LatLon[];
+  /** Street-following geometry from a routing service, once fetched. */
+  geometry?: LatLon[];
+  /** True once distance and time come from real streets, not straight lines. */
+  routed?: boolean;
+  /** Short hops from a stop to where the street path reaches it (gates, compounds). */
+  connectors?: [LatLon, LatLon][];
   distanceKm: number;
   estimatedMinutes: number;
   mode: Mode;

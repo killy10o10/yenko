@@ -6,6 +6,7 @@ import { RouteCard } from "./RouteCard";
 
 interface Props {
   routes: Route[];
+  budgetMinutes: number;
   activeId: string | null;
   onSelect: (id: string) => void;
   onStart: (id: string) => void;
@@ -13,7 +14,7 @@ interface Props {
   onRegenerate: () => void;
 }
 
-export function RoutesScreen({ routes, activeId, onSelect, onStart, onBack, onRegenerate }: Props) {
+export function RoutesScreen({ routes, budgetMinutes, activeId, onSelect, onStart, onBack, onRegenerate }: Props) {
   return (
     <div className="p-4 pt-3 md:p-6 md:pt-2">
       <div className="mb-4 flex items-center justify-between">
@@ -48,6 +49,7 @@ export function RoutesScreen({ routes, activeId, onSelect, onStart, onBack, onRe
               <RouteCard
                 key={r.id}
                 route={r}
+                budgetMinutes={budgetMinutes}
                 index={i}
                 active={r.id === activeId}
                 onSelect={() => onSelect(r.id)}

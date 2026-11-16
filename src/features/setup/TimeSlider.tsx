@@ -22,7 +22,7 @@ export function TimeSlider({ value, onChange }: Props) {
         step={5}
         value={[value]}
         onValueChange={([v]) => onChange(v)}
-        className="**:data-[slot=slider-track]:h-2 **:data-[slot=slider-thumb]:size-5 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-thumb]:border-primary"
+        className="**:data-[slot=slider-track]:h-2 **:data-[slot=slider-thumb]:size-5 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-thumb]:border-selected"
       />
       <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
         <span>15 min</span>

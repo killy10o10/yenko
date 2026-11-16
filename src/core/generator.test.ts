@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generateRoutes } from "./generator";
 import { haversineKm, orderStops, pathLengthKm } from "./geo";
 import { completeRoute, EMPTY_PROGRESS, overallRank, rankForPoints } from "./familiarity";
+import { dominantHood, hoodLabel, hoodResolver, nearestHood, type Hood } from "./hoods";
 import type { Category, Poi, RouteRequest } from "./types";
 
 // Osu, Accra. Oxford Street area.
@@ -82,7 +83,9 @@ describe("generateRoutes", () => {
   });
 
   it("covers every requested interest when data allows", () => {
-    const routes = generateRoutes(baseReq, POIS);
+    // 60 min: with street detours counted, 45 min doesn't reach all five
+    // categories in this synthetic layout.
+    const routes = generateRoutes({ ...baseReq, budgetMinutes: 60 }, POIS);
     for (const r of routes) {
       for (const c of baseReq.interests) expect(r.categoriesCovered).toContain(c);
     }
@@ -146,6 +149,52 @@ describe("generateRoutes", () => {
     const trotro = generateRoutes({ ...baseReq, mode: "trotro" }, POIS);
     const maxD = (rs: typeof walk) => Math.max(...rs.map((r) => r.distanceKm));
     expect(maxD(trotro)).toBeGreaterThan(maxD(walk));
+  });
+});
+
+describe("route ids", () => {
+  it("depend on the stops, not the seed", () => {
+    const [a] = generateRoutes({ ...baseReq, seed: 1 }, POIS);
+    const same = [2, 3, 4, 5, 6, 7, 8]
+      .map((seed) => generateRoutes({ ...baseReq, seed }, POIS)[0])
+      .find((r) => r.stops.map((s) => s.id).join() === a.stops.map((s) => s.id).join());
+    if (same) expect(same.id).toBe(a.id);
+    const other = generateRoutes({ ...baseReq, seed: 99, interests: ["cafe", "fuel"] }, POIS)[0];
+    expect(other.id).not.toBe(a.id);
+  });
+});
+
+describe("hoods", () => {
+  const hoods: Hood[] = [
+    { name: "Accra", kind: "town", lat: 5.556, lon: -0.1969 },
+    { name: "Osu", kind: "suburb", lat: 5.556, lon: -0.18 },
+    { name: "Danquah Circle", kind: "neighbourhood", lat: 5.5605, lon: -0.1825 },
+  ];
+
+  it("prefers a nearby neighbourhood over a nearer town centre", () => {
+    expect(nearestHood({ lat: 5.5575, lon: -0.186 }, hoods)?.name).toBe("Danquah Circle");
+  });
+
+  it("returns null when nothing is close", () => {
+    expect(nearestHood({ lat: 6.69, lon: -1.62 }, hoods)).toBeNull();
+  });
+
+  it("falls back to a grid cell, labelled as unmapped", () => {
+    const resolve = hoodResolver(hoods);
+    const key = resolve({ lat: 6.69, lon: -1.62 });
+    expect(hoodLabel(key)).toBe("Unmapped area");
+    expect(hoodLabel(resolve(ORIGIN))).not.toBe("Unmapped area");
+  });
+
+  it("names a route after the hood most stops are in", () => {
+    const resolve = hoodResolver(hoods);
+    expect(dominantHood([ORIGIN, ORIGIN, { lat: 5.556, lon: -0.1969 }], resolve)).toBe(resolve(ORIGIN));
+  });
+
+  it("completeRoute credits named hoods", () => {
+    const [route] = generateRoutes(baseReq, POIS);
+    const p = completeRoute(EMPTY_PROGRESS, route, hoodResolver(hoods));
+    expect(Object.keys(p.hoods).every((k) => ["Accra", "Osu", "Danquah Circle"].includes(k))).toBe(true);
   });
 });
 

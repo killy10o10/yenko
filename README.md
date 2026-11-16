@@ -70,11 +70,15 @@ per neighbourhood, district and city, so Osu can argue with East Legon.
 ## The look
 
 I'm a UX engineer, so this part matters to me as much as the routing. The UI is
-built on shadcn/ui and Radix for accessibility, with Tailwind on top. The theme is
-"Accra at golden hour": sand paper surfaces, terracotta, forest green, a line of
-kente where a divider would be boring. Type is Bricolage Grotesque and DM Sans,
-self-hosted so it works offline. Animations are real but quiet, and they switch
-off if your phone asks for reduced motion.
+built on shadcn/ui and Radix for accessibility, with Tailwind on top. The palette
+is **Black Star**: ink black on golden yellow, with the flag's red and green as
+accents and a line of kente where a divider would be boring. Type is Bricolage
+Grotesque and DM Sans, self-hosted so it works offline. Animations are real but
+quiet, and they switch off if your phone asks for reduced motion.
+
+My first palette, **Golden Hour** (sand and terracotta), is still in there. I
+liked it, but it looked a bit too much like someone else's brand. Add
+`?palette=golden-hour` to the URL to see it.
 
 ## Where things live
 
@@ -98,11 +102,25 @@ off if your phone asks for reduced motion.
     └── map/                 MapLibre map view
 ```
 
+## Try it
+
+It's live at **https://killy10o10.github.io/yenko/**. On Android, open it in
+Chrome and choose "Add to Home screen" (or "Install app"). On iPhone, open it in
+Safari, tap Share, then "Add to Home Screen".
+
 ## Run it
 
 ```bash
 npm install
 npm run dev
+```
+
+Every push to `main` builds, tests and deploys to GitHub Pages.
+
+Regenerate the app icons after editing `public/icon.svg`:
+
+```bash
+npm run icons
 ```
 
 Refresh the Accra places from OpenStreetMap (free, be gentle with the public
@@ -120,8 +138,8 @@ npm test
 
 ## Where it is right now
 
-Pre-MVP, but it works: pick interests, tap the map, get three routes you could
-walk in Accra this afternoon. The roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Pre-MVP, but it works: pick interests, tap the map, get three routes that
+follow real streets in Accra, walk one, and get your passport stamped. The roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 If you've just moved somewhere in Ghana and want to try it, I'd genuinely like to
 hear what it got wrong.

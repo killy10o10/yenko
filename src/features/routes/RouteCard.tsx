@@ -8,13 +8,15 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   route: Route;
+  budgetMinutes: number;
   active: boolean;
   index: number;
   onSelect: () => void;
   onStart: () => void;
 }
 
-export function RouteCard({ route, active, index, onSelect, onStart }: Props) {
+export function RouteCard({ route, budgetMinutes, active, index, onSelect, onStart }: Props) {
+  const overBudget = route.routed && route.estimatedMinutes > budgetMinutes * 1.15;
   const reduce = useReducedMotion();
   const copy = VARIANT_COPY[route.variant];
   const ModeIcon = MODE_META[route.mode].icon;
@@ -27,7 +29,7 @@ export function RouteCard({ route, active, index, onSelect, onStart }: Props) {
       transition={{ delay: index * 0.07, duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
       className={cn(
         "overflow-hidden rounded-2xl border bg-background transition-[border-color,box-shadow]",
-        active ? "border-primary shadow-lg shadow-primary/10" : "hover:border-foreground/25",
+        active ? "border-selected shadow-lg shadow-black/10 ring-1 ring-selected" : "hover:border-foreground/25",
       )}
     >
       <button
@@ -52,6 +54,13 @@ export function RouteCard({ route, active, index, onSelect, onStart }: Props) {
             <span className="sr-only">{MODE_META[route.mode].label}</span>
           </dd>
         </dl>
+        <p className="mt-1.5 text-[11px] text-muted-foreground" aria-live="polite">
+          {!route.routed
+            ? "Estimate · checking the streets…"
+            : overBudget
+              ? `Longer than your ${budgetMinutes} min once you follow the streets`
+              : "Distance along real streets"}
+        </p>
       </button>
 
       <AnimatePresence initial={false}>
@@ -69,7 +78,7 @@ export function RouteCard({ route, active, index, onSelect, onStart }: Props) {
                 const Icon = cat.icon;
                 return (
                   <li key={s.id} className="flex items-center gap-3 py-1.5">
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary font-heading text-[11px] font-bold text-primary-foreground">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-route font-heading text-[11px] font-bold text-route-foreground">
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
