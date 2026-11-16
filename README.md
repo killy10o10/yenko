@@ -1,123 +1,131 @@
-# Yɛnkɔ — explore your new hood, Ghana style
+# Yɛnkɔ
 
-> *Yɛnkɔ* (Twi: "let's go"). Working name; rename later.
+> *Yɛnkɔ* is Twi for "let's go". It's a working name. I'll probably change it, but
+> it sounds better than "Neighbourhood Explorer", which is what I called it the
+> first time round.
 
-Yɛnkɔ turns "I just moved to Accra / Kumasi / Tamale and I don't know where anything is"
-into a game. Tell it where you are and what you care about, and it hands you short,
-walkable (or trotro-able) routes that string together the places you actually need:
-the pharmacy, the MoMo agent, the chop bar, the trotro stop, the cold store, the
-closest clinic. Complete routes, grow your **hood familiarity**, and go from
-**JJC** to **Local**.
+I moved around a lot: new areas, new routines, that first week of not knowing
+where the nearest pharmacy is or which trotro stop is actually mine. Everyone in
+Ghana has done this at some point. NSS posting. Freshers' week at Legon or KNUST.
+A new job on the other side of Accra. Coming back from abroad to a city that
+rearranged itself while you were away.
 
-Built for people who just landed somewhere new in Ghana:
+Yɛnkɔ is the app I wished I had on those days. You tell it where you are and what
+you care about, and it hands you a short, walkable route through the places you
+actually need: the pharmacy, the MoMo agent, a decent chop bar, the provisions
+shop, the right trotro stop. Walk it, tick the stops off, and your **hood
+familiarity** goes up. Start as a **JJC**, work your way to **Local**.
 
-- NSS personnel posted to a town they've never lived in
-- Freshers at Legon, KNUST, UCC, UDS and co.
-- New hires relocating for work
-- Returnees and the diaspora back for the long haul
-- Visitors who want more than the hotel-to-mall loop
+## Why it died the first time, and why I'm building it again
 
-## Why this exists (and why it died the first time)
+I first sketched this around 2021 on top of the Google Maps and Places APIs. It
+stalled for two honest reasons: those APIs cost money and I didn't have it, and I
+didn't know enough backend to make the rest work.
 
-The original idea (2021-ish) was built on the Google Maps + Places APIs. It stalled
-because those APIs cost money, and the author didn't have it. Version two is
-designed around a simple constraint: **zero recurring cost until the app earns it**.
+I still don't have money to burn on APIs. So this version is built around one
+rule: **it costs me nothing to run until it earns something.**
 
-- **No Google.** Places come from OpenStreetMap, routing from open routers,
-  tiles from free vector tile hosts, geocoding from Nominatim or Photon.
-- **No backend for MVP.** The whole thing is a static PWA. City POI data ships as a
-  JSON file that the app caches for offline use. Accounts, leaderboards and shared
-  routes come later on a free tier (Supabase or Cloudflare).
-- **Cheap-phone and low-data first.** Small bundle, vector tiles, offline cache,
-  works on a GH₵600 Android.
+- **No Google.** Places come from OpenStreetMap, routing from open routers, map
+  tiles from a free vector tile host, geocoding from Nominatim or Photon.
+- **No backend, yet.** The whole app is a static PWA. Each city's places ship as
+  one JSON file the app caches for offline use. Accounts, leaderboards and shared
+  routes come later on a free tier.
+- **Built for the phones people actually have.** Small bundle, vector tiles,
+  offline-first, fine on a GH₵600 Android with a 1 GB bundle.
 
-See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for the full free stack and
-[docs/DECISIONS.md](docs/DECISIONS.md) for why each choice was made.
+The full free stack, with limits and fallbacks, is in
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). Why I chose each thing is in
+[docs/DECISIONS.md](docs/DECISIONS.md).
 
-## Core features
+## What it does
 
-### 1. Route generation
-Pick your interests (e.g. *groceries, pharmacy, food, transport, money*), your start
-point, how far you want to go and how you're moving. Yɛnkɔ generates two or three
-routes, each a loop of 4–8 real places chosen to cover your interests without
-sending you across town.
+**Routes from what you need.** Pick your interests, your start point, how long
+you have and how you're moving. Yɛnkɔ gives you three takes on the same hood:
 
-### 2. Customisable routes
-- Distance / time budget (a 20-minute stroll vs. a half-day wander)
-- Mode: walking, trotro, taxi / ride-hail (Bolt, Yango, Uber), okada, own car
-- Number of stops, "must include" categories, "avoid" categories
-- Swap a stop for a nearby alternative
+| Route | What it's for |
+|-------|---------------|
+| The errands run | Pharmacy, MoMo, provisions. Sorted. |
+| The slow stroll | Food, coffee and somewhere to sit. |
+| The full tour | Everything within reach. Bring water. |
 
-### 3. Hood familiarity (gamification)
-Every completed route earns familiarity for that area. Ranks:
+**Routes that respect your time.** The time budget is real: walking, trotro,
+okada, taxi and car each have their own speed and their own faff per stop.
 
-| Rank | Meaning |
-|------|---------|
-| JJC | Johnny Just Come. You know your gate and nothing else. |
-| Visitor | You can find the pharmacy and a chop bar. |
-| Regular | The trotro mates know your stop. |
-| Local | You give directions to other people. |
-| Borga | Honorary. You've explored multiple hoods. |
+**A hood passport.** Finish a route and it gets stamped. Ranks go JJC, Visitor,
+Regular, Local, and Borga once you're Local in three hoods. Later: a leaderboard
+per neighbourhood, district and city, so Osu can argue with East Legon.
 
-Later: a leaderboard per neighbourhood, district and city.
+## Ghana first
 
-## Ghana-specific touches
+- Categories that make sense here: MoMo agents, trotro stops and stations,
+  filling stations, chop bars, cold stores and provision shops, markets, churches
+  and mosques, salons and barbers, tailors, mechanics, police posts.
+- Trotro is not "transit" the way Google means it. Phase 2 uses the open
+  AccraMobile GTFS data to show real lines at the stops.
+- Ghana Post GPS addresses on each stop, once I find a licence-clean way to get
+  them.
+- Daylight-aware by default. Nobody needs a 9pm stroll through an unlit street.
+- English first, Twi and Ga when I get to it.
 
-- **Categories that matter here:** MoMo agents, trotro stations and stops, filling
-  stations, chop bars, cold stores, provision shops, markets, churches and mosques,
-  salons and barbers, tailors, mechanics, police posts.
-- **Transport reality:** trotro and shared taxi routes are not "transit" in the
-  Google sense. Phase 2 pulls in the open AccraMobile GTFS data for trotro lines.
-- **Ghana Post GPS:** every stop can show its digital address (e.g. GA-183-8164)
-  once a free lookup path is confirmed. See data sources doc.
-- **Daylight-aware:** routes default to daytime and prefer busier, lit roads.
-- **Local language:** UI strings in English first, Twi and Ga as stretch goals.
+## The look
 
-## Project layout
+I'm a UX engineer, so this part matters to me as much as the routing. The UI is
+built on shadcn/ui and Radix for accessibility, with Tailwind on top. The theme is
+"Accra at golden hour": sand paper surfaces, terracotta, forest green, a line of
+kente where a divider would be boring. Type is Bricolage Grotesque and DM Sans,
+self-hosted so it works offline. Animations are real but quiet, and they switch
+off if your phone asks for reduced motion.
+
+## Where things live
 
 ```
 .
 ├── README.md
 ├── docs/
-│   ├── ARCHITECTURE.md      system design + diagrams
-│   ├── ROUTE_ALGORITHM.md   how routes are generated
-│   ├── DATA_SOURCES.md      the free stack, with limits and fallbacks
+│   ├── ARCHITECTURE.md      system design with diagrams
+│   ├── ROUTE_ALGORITHM.md   how routes get picked and ordered
+│   ├── DATA_SOURCES.md      the free stack, limits and fallbacks
 │   ├── ROADMAP.md           phases to MVP and beyond
-│   └── DECISIONS.md         architecture decision records
+│   └── DECISIONS.md         why I chose what I chose
 ├── scripts/
-│   └── fetch-pois.mjs       pulls POIs for a city from OpenStreetMap
-├── public/data/             generated city POI files (accra.json, ...)
+│   └── fetch-pois.mjs       pulls a city's places from OpenStreetMap
+├── public/data/             generated city files (accra.json, ...)
 └── src/
     ├── core/                pure TypeScript: types, geo maths, scoring, generator
-    ├── data/                loading and caching city data
-    ├── map/                 MapLibre map view
-    └── ui/                  React components
+    ├── data/                city loading, categories, copy
+    ├── features/            setup, routes, walk, passport, layout
+    ├── components/          shadcn/ui kit and hand-drawn illustrations
+    └── map/                 MapLibre map view
 ```
 
-## Getting started
+## Run it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Refresh the Accra POI data (free, Overpass API, be gentle):
+Refresh the Accra places from OpenStreetMap (free, be gentle with the public
+Overpass servers):
 
 ```bash
 npm run data:fetch -- accra
 ```
 
-Run the route-generation tests:
+Tests for the route engine, including a smoke test on the real Accra data:
 
 ```bash
 npm test
 ```
 
-## Status
+## Where it is right now
 
-Pre-MVP. The route engine and data pipeline exist and are tested. The map UI is a
-first pass. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Pre-MVP, but it works: pick interests, tap the map, get three routes you could
+walk in Accra this afternoon. The roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+If you've just moved somewhere in Ghana and want to try it, I'd genuinely like to
+hear what it got wrong.
 
 ## Licence
 
-Code: MIT. Map data: © OpenStreetMap contributors, ODbL.
+Code is MIT. Map data is © OpenStreetMap contributors, under the ODbL.
