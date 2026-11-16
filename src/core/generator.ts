@@ -1,6 +1,6 @@
 import type { Category, LatLon, Poi, Route, RouteRequest, Variant } from "./types";
 import { haversineKm, orderStops, pathLengthKm } from "./geo";
-import { distanceBudgetKm, estimateMinutes } from "./modes";
+import { DETOUR_FACTOR, distanceBudgetKm, estimateMinutes } from "./modes";
 import { rng, scorePoi, type ScoringOptions } from "./scoring";
 
 const DEFAULT_MAX_STOPS = 6;
@@ -18,7 +18,7 @@ const VARIANTS: VariantProfile[] = [
   {
     variant: "essentials",
     title: "Essentials",
-    budgetScale: 0.7,
+    budgetScale: 0.85,
     extraStops: 0,
     jitter: 0.2,
     boost: ["pharmacy", "groceries", "money", "transport", "health"],
@@ -81,7 +81,9 @@ function generateOne(
   if (interests.length === 0) return null;
 
   // Radius: half the distance budget for a loop, a bit more for one-way.
-  const totalKm = distanceBudgetKm(req.mode, budgetMin, Math.min(maxStops, interests.length));
+  // Budget along streets, converted to the straight-line distance we plan with.
+  const detour = DETOUR_FACTOR[req.mode];
+  const totalKm = distanceBudgetKm(req.mode, budgetMin, Math.min(maxStops, interests.length)) / detour;
   const radiusKm = Math.max(0.3, totalKm * (loop ? 0.5 : 0.7));
 
   const visited = req.visited ?? new Set<string>();
@@ -149,10 +151,13 @@ function generateOne(
   const ordered = orderStops(req.origin, chosen, loop);
   const path: LatLon[] = [req.origin, ...ordered.map(({ lat, lon }) => ({ lat, lon }))];
   if (loop) path.push(req.origin);
-  const distanceKm = pathLengthKm(path);
+  // Estimated street distance until the router answers with the real one.
+  const distanceKm = pathLengthKm(path) * detour;
 
   return {
-    id: `${profile.variant}-${seed}`,
+    // Id comes from the stops, so walking the exact same route twice doesn't
+    // earn double points, while any different route always does.
+    id: `${profile.variant}-${hashIds(ordered.map((s) => s.id))}`,
     variant: profile.variant,
     title: profile.title,
     stops: ordered,
@@ -162,6 +167,16 @@ function generateOne(
     mode: req.mode,
     categoriesCovered: [...new Set(ordered.map((s) => s.category))],
   };
+}
+
+/** FNV-1a over the stop ids, base36. Stable across sessions and seeds. */
+function hashIds(ids: string[]): string {
+  let h = 0x811c9dc5;
+  for (const ch of ids.join("|")) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
 }
 
 function normName(name: string): string {

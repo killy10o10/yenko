@@ -4,3 +4,4 @@ export * from "./modes";
 export * from "./scoring";
 export * from "./generator";
 export * from "./familiarity";
+export * from "./hoods";

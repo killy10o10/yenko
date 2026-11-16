@@ -4,23 +4,43 @@ import { VitePWA } from "vite-plugin-pwa";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 
-export default defineConfig({
+// GitHub Pages serves the app at https://<user>.github.io/yenko/, so production
+// builds live under /yenko/. Override with BASE_PATH (e.g. "/" for a custom domain).
+export default defineConfig(({ command }) => ({
+  base: process.env.BASE_PATH ?? (command === "build" ? "/yenko/" : "/"),
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep the big, rarely-changing libraries in their own cached files.
+        manualChunks: {
+          maplibre: ["maplibre-gl"],
+          react: ["react", "react-dom"],
+        },
+      },
+    },
+  },
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png", "icon.svg"],
       manifest: {
+        // start_url and scope default to the base path, so the PWA works under /yenko/.
         name: "Yɛnkɔ",
         short_name: "Yɛnkɔ",
         description: "Explore your new hood, Ghana style.",
-        theme_color: "#0f766e",
-        background_color: "#fafaf9",
+        lang: "en",
+        theme_color: "#fbd028",
+        background_color: "#fbd028",
         display: "standalone",
-        start_url: "/",
+        orientation: "portrait",
         icons: [
-          { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
@@ -28,7 +48,7 @@ export default defineConfig({
         globIgnores: ["**/data/*.json"],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/data/"),
+            urlPattern: ({ url }) => url.pathname.includes("/data/") && url.pathname.endsWith(".json"),
             handler: "StaleWhileRevalidate",
             options: { cacheName: "city-data", expiration: { maxEntries: 8 } },
           },
@@ -47,4 +67,4 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
   },
-});
+}));

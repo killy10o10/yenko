@@ -30,10 +30,10 @@ export function ModePicker({ value, onChange }: Props) {
             className={cn(
               "flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-all outline-none",
               "focus-visible:ring-3 focus-visible:ring-ring/50",
-              on ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              on ? "bg-segment text-segment-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Icon className={cn("size-5", on && "text-primary")} strokeWidth={2.2} />
+            <Icon className={cn("size-5", on && "text-segment-icon")} strokeWidth={2.2} />
             {meta.short}
           </ToggleGroupPrimitive.Item>
         );

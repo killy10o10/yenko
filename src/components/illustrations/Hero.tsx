@@ -53,7 +53,7 @@ export function HeroIllustration({ className }: { className?: string }) {
         <path
           d="M48 40 C 70 40, 80 70, 108 70 S 150 100, 166 100 S 220 100, 220 138 S 250 160, 268 160"
           fill="none"
-          stroke="var(--primary)"
+          stroke="var(--route)"
           strokeWidth="3.5"
           strokeLinecap="round"
           strokeDasharray="7 6"
@@ -61,10 +61,10 @@ export function HeroIllustration({ className }: { className?: string }) {
         {/* stops */}
         <g fontFamily="var(--font-heading)" fontWeight="700" fontSize="11" textAnchor="middle">
           <circle cx="48" cy="40" r="10" fill="var(--forest)" stroke="var(--background)" strokeWidth="2.5" />
-          <circle cx="166" cy="100" r="10" fill="var(--primary)" stroke="var(--background)" strokeWidth="2.5" />
-          <text x="166" y="104" fill="var(--primary-foreground)">1</text>
-          <circle cx="268" cy="160" r="10" fill="var(--primary)" stroke="var(--background)" strokeWidth="2.5" />
-          <text x="268" y="164" fill="var(--primary-foreground)">2</text>
+          <circle cx="166" cy="100" r="10" fill="var(--route)" stroke="var(--background)" strokeWidth="2.5" />
+          <text x="166" y="104" fill="var(--route-foreground)">1</text>
+          <circle cx="268" cy="160" r="10" fill="var(--route)" stroke="var(--background)" strokeWidth="2.5" />
+          <text x="268" y="164" fill="var(--route-foreground)">2</text>
         </g>
         {/* trotro on the main road */}
         <g transform="translate(150 60)">
@@ -72,7 +72,7 @@ export function HeroIllustration({ className }: { className?: string }) {
           <rect x="4" y="3" width="10" height="7" rx="1.5" fill="var(--foreground)" opacity="0.75" />
           <rect x="17" y="3" width="10" height="7" rx="1.5" fill="var(--foreground)" opacity="0.75" />
           <rect x="30" y="3" width="10" height="7" rx="1.5" fill="var(--foreground)" opacity="0.75" />
-          <rect x="0" y="12" width="44" height="3" fill="var(--primary)" />
+          <rect x="0" y="12" width="44" height="3" fill="var(--red)" />
           <circle cx="10" cy="21" r="3.5" fill="var(--foreground)" />
           <circle cx="34" cy="21" r="3.5" fill="var(--foreground)" />
         </g>

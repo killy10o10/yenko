@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { currentPalette, PALETTE_HEX } from "./palette";
 
 export type Theme = "light" | "dark";
 const KEY = "yenko:theme";
@@ -22,7 +23,7 @@ export function useTheme(): [Theme, () => void] {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#2b2622" : "#faf6ee");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", PALETTE_HEX[currentPalette()][theme].bg);
   }, [theme]);
 
   useEffect(() => {

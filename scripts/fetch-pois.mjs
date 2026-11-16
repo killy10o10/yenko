@@ -8,8 +8,10 @@
  *
  * Usage:  node scripts/fetch-pois.mjs accra
  *         node scripts/fetch-pois.mjs kumasi
+ *         node scripts/fetch-pois.mjs accra --hoods-only   (light query; only
+ *           refreshes neighbourhood names in an existing city file)
  */
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
 
 // Bounding boxes: [south, west, north, east]
 const CITIES = {
@@ -91,7 +93,14 @@ function buildQuery(bbox) {
     'craft="tailor"',
   ];
   const body = selectors.map((s) => `nwr[${s}](${b});`).join("\n  ");
-  return `[out:json][timeout:180];\n(\n  ${body}\n);\nout center tags;`;
+  // Named places become "hoods": what the passport and stamps call an area.
+  const hoods = `node["place"~"^(neighbourhood|quarter|suburb|town|village)$"]["name"](${b});`;
+  return `[out:json][timeout:180];\n(\n  ${body}\n  ${hoods}\n);\nout center tags;`;
+}
+
+function buildHoodsQuery(bbox) {
+  const b = bbox.join(",");
+  return `[out:json][timeout:60];\nnode["place"~"^(neighbourhood|quarter|suburb|town|village)$"]["name"](${b});\nout body;`;
 }
 
 async function main() {
@@ -101,10 +110,13 @@ async function main() {
     console.error(`Unknown city "${key}". Known: ${Object.keys(CITIES).join(", ")}`);
     process.exit(1);
   }
-  const query = buildQuery(city.bbox);
+  const hoodsOnly = process.argv.includes("--hoods-only");
+  const query = hoodsOnly ? buildHoodsQuery(city.bbox) : buildQuery(city.bbox);
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   ];
   let json;
   for (const url of endpoints) {
@@ -114,6 +126,8 @@ async function main() {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "yenko-poi-fetch/0.1" },
         body: "data=" + encodeURIComponent(query),
+        // A busy mirror can hang forever; give up and try the next one.
+        signal: AbortSignal.timeout(hoodsOnly ? 60_000 : 240_000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       json = await res.json();
@@ -128,8 +142,13 @@ async function main() {
   }
 
   const pois = [];
+  const hoods = [];
   for (const el of json.elements) {
     const tags = el.tags ?? {};
+    if (el.type === "node" && HOOD_KINDS.has(tags.place) && tags.name) {
+      hoods.push({ name: tags.name, kind: tags.place, lat: +el.lat.toFixed(6), lon: +el.lon.toFixed(6) });
+      continue;
+    }
     const category = categorise(tags);
     if (!category) continue;
     const lat = el.lat ?? el.center?.lat;
@@ -145,6 +164,15 @@ async function main() {
     });
   }
 
+  if (hoodsOnly) {
+    const file = `public/data/${key}.json`;
+    const existing = JSON.parse(await readFile(file, "utf8"));
+    existing.hoods = hoods;
+    await writeFile(file, JSON.stringify(existing));
+    console.error(`Updated ${hoods.length} hoods in ${file}`);
+    return;
+  }
+
   const out = {
     city: city.name,
     slug: key,
@@ -152,15 +180,18 @@ async function main() {
     source: "OpenStreetMap contributors (ODbL) via Overpass API",
     fetchedAt: new Date().toISOString(),
     count: pois.length,
+    hoods,
     pois,
   };
   await mkdir("public/data", { recursive: true });
   const file = `public/data/${key}.json`;
   await writeFile(file, JSON.stringify(out));
   const byCat = pois.reduce((m, p) => ((m[p.category] = (m[p.category] ?? 0) + 1), m), {});
-  console.error(`Wrote ${pois.length} POIs to ${file}`);
+  console.error(`Wrote ${pois.length} POIs and ${hoods.length} hoods to ${file}`);
   console.error(JSON.stringify(byCat, null, 2));
 }
+
+const HOOD_KINDS = new Set(["neighbourhood", "quarter", "suburb", "town", "village"]);
 
 function pick(obj, keys) {
   const o = {};

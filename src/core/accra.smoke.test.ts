@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { generateRoutes } from "./generator";
+import { hoodResolver } from "./hoods";
 import type { CityData } from "./types";
 
 /**
@@ -46,6 +47,13 @@ describe.skipIf(!has)("real Accra data", () => {
       );
     });
   }
+
+  it("names well-known spots after their hood", () => {
+    const hoodOf = hoodResolver(city.hoods);
+    expect(hoodOf({ lat: 5.5571, lon: -0.1824 })).toBe("Osu");
+    expect(hoodOf({ lat: 5.6366, lon: -0.1572 })).toBe("East Legon");
+    expect(hoodOf({ lat: 5.5406, lon: -0.2644 })).toBe("Dansoman");
+  });
 
   it("generates in well under 100 ms on ~13k POIs", () => {
     const t0 = performance.now();

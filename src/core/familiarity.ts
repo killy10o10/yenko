@@ -1,4 +1,4 @@
-import type { Mode, Route } from "./types";
+import type { LatLon, Mode, Route } from "./types";
 import { MODES } from "./modes";
 import { hoodCell } from "./geo";
 
@@ -17,13 +17,16 @@ export function pointsForRoute(route: Route, mode: Mode = route.mode): number {
   return Math.round(route.stops.length * 10 * MODES[mode].familiarityMultiplier);
 }
 
-/** Apply a completed route to progress. Points go to the hood each stop sits in. */
-export function completeRoute(progress: Progress, route: Route): Progress {
+/**
+ * Apply a completed route to progress. Points go to the hood each stop sits
+ * in; `hoodOf` names that hood (defaults to a ~1 km grid cell).
+ */
+export function completeRoute(progress: Progress, route: Route, hoodOf: (p: LatLon) => string = hoodCell): Progress {
   if (progress.completedRouteIds.includes(route.id)) return progress;
   const perStop = pointsForRoute(route) / route.stops.length;
   const hoods = { ...progress.hoods };
   for (const s of route.stops) {
-    const cell = hoodCell(s);
+    const cell = hoodOf(s);
     hoods[cell] = Math.round(((hoods[cell] ?? 0) + perStop) * 10) / 10;
   }
   return {

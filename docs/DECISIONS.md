@@ -65,6 +65,42 @@ Worker, not Next API routes. Revisit if the app grows a public, crawlable
 request and returns routes. This keeps it testable with Vitest in Node, reusable
 if we move to React Native or Capacitor, and easy to reason about.
 
+## ADR-006: GitHub Pages hosting, public repo
+
+**Status:** accepted · 2026-11-16
+
+The repo goes public and the app is served from GitHub Pages at
+`/yenko/`, built and deployed by `.github/workflows/deploy.yml` on every push
+to `main`. Free, HTTPS (required for geolocation and the service worker), no
+extra account. Vite's `base` is `/yenko/` for builds; set `BASE_PATH=/` if a
+custom domain is added later. Cloudflare Pages stays the fallback if we ever
+need a private repo or an Accra edge for speed.
+
+## ADR-007: Black Star palette, Golden Hour kept switchable
+
+**Status:** accepted · 2026-11-16
+
+The first palette (sand + terracotta) read too close to Anthropic/Claude's
+brand. The new default, Black Star, uses the Ghana flag: ink black on golden
+yellow, true flag red and green as accents. Both palettes live in
+`src/index.css` behind `<html data-palette>`; components use semantic tokens
+(`--selected`, `--route`, `--segment`, `--eyebrow`) so either palette renders
+fully. Preview the old one with `?palette=golden-hour`; make it the default by
+changing one attribute in `index.html`.
+
+## ADR-008: Street paths from FOSSGIS OSRM, planned with a detour factor
+
+**Status:** accepted · 2026-11-16
+
+Stops are still chosen offline with straight-line distance (fast, no network),
+scaled by a per-mode detour factor (~1.4 for walking) so time budgets are
+honest. After generation, each route is sent once to the free FOSSGIS OSRM
+servers (`routing.openstreetmap.de`, the ones openstreetmap.org uses) for the
+real street path, distance and time. If it fails, the dashed straight-line
+estimate stays. Requests are sequential and cached to respect the fair-use
+policy. A card says plainly when following the streets pushes a route past
+the time the user asked for.
+
 ## ADR-005: Mobile distribution via PWA first, Capacitor later
 
 **Status:** accepted · 2026-11-15
